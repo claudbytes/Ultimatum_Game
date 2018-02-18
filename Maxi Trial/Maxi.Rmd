@@ -1,0 +1,83 @@
+---
+title: "Maxi"
+author: "Claudia Falsetti"
+date: "17 February 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r libraries}
+setwd("~/Maxi/Maxi Trial") 
+library(tidyverse)
+```
+
+Now the .csv files are loaded in as a list and imported within the same dataframe named data. 
+
+```{r dataframe, warning=FALSE, error=FALSE}
+results = list.files(pattern = ".csv")
+data = lapply(results, read.csv, header = FALSE, stringsAsFactors = FALSE)
+data_frame <- do.call("rbind", data)
+
+```
+
+
+Data preprocessing: eliminate unneeded columnes and rows, prepare the data for statistical analysis 
+```{r preprocessing }
+
+data_frame <- data_frame[-1: -2, ] %>%  ## remove first 2 rows (completion code) 
+  select(V2, V27, V28, V29, V33, V34)  ## and select relevant columns
+
+colnames(data_frame) <- data_frame[1,]   ####### set the first row to be the header of the data frame 
+final_data <- data_frame[-1, ] 
+
+final_data <- filter(final_data, trialNo != "na", trialNo != "", trialNo != "trialNo") 
+
+final_data <- final_data %>%  # add a column for sujb_id, 275 represents n° of trials per participant
+  mutate("subj_id" = rep(1:23,each=275))   ### change 5 with actual number of participants
+
+```
+
+Descriptives. 
+Before proceding to the analysis, the dataset is explored. 
+This includes measures of means, standard deviations and plots. 
+
+```{r Descriptive, warning=FALSE}
+
+final_data$RT <- as.numeric(final_data$RT)  ### set some variables to be as.numeric for future things
+final_data$response <- as.numeric(final_data$response)
+
+ultimatum <- final_data %>%   ## create a dataframe with only UltimatumGame results 
+  group_by(subj_id) %>%          ########## recode response as acceptance -> accepted=1, rejected = 0
+    filter(game == "ultimatum") %>% 
+      mutate(acceptance = if_else(response == 1, 0L, 1L)) %>% 
+        mutate(RT_S = RT / 1000) %>%
+          select(subj_id, everything())
+
+ultim_summary <- ultimatum %>%
+  group_by(stim_type, offer) %>%
+  summarise(p = mean(acceptance),
+            sd = sd(acceptance))
+
+boxplot <- ggplot(ultim_summary, aes(stim_type, p)) + geom_boxplot()      #### boxplots not considering offers 
+print(boxplot)
+
+accepted_only <- ultimatum %>%
+  group_by(stim_type, offer) %>%
+    filter(acceptance == 1) 
+
+rates <- accepted_only %>%
+  group_by(stim_type, offer) %>%
+    count(acceptance)
+
+percentages <- mutate(rates, perc = n/1725*100)
+
+```

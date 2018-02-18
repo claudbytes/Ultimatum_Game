@@ -1,0 +1,4 @@
+"0","library(""tidyverse"")"
+"0","hw <- read_csv(""homework.csv"", col_types = ""ciiiiiiii"")"
+"0","exam <- read_csv(""exam.csv"", col_types = ""ci"")"
+"0","software <- read_csv(""software.csv"", col_types = ""cc"")"

@@ -1,0 +1,4 @@
+"0","library(""lme4"")"
+"0","library(""tidyverse"")"
+"0","subjects <- read_csv(""exp2_subjects.csv"")"
+"0","trials <- read_csv(""exp2_trials.csv"")"
