@@ -13,16 +13,24 @@ knitr::opts_chunk$set(echo = TRUE)
 
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
+
+Firstly, I set the working directory to point at the folder in which I saved the results.csv files and load the libraries that will be needed throughout the code. 
 
 ```{r libraries}
+
 setwd("~/Maxi/Maxi Trial") 
+
 library(tidyverse)
+library(lme4)
+library(Matrix)
+
 ```
 
-Now the .csv files are loaded in as a list and imported within the same dataframe named data. 
+Now the .csv files are loaded in as a list and imported within the same dataframe named data_frame. 
 
 ```{r dataframe, warning=FALSE, error=FALSE}
+
 results = list.files(pattern = ".csv")
 data = lapply(results, read.csv, header = FALSE, stringsAsFactors = FALSE)
 data_frame <- do.call("rbind", data)
@@ -30,7 +38,8 @@ data_frame <- do.call("rbind", data)
 ```
 
 
-Data preprocessing: eliminate unneeded columnes and rows, prepare the data for statistical analysis 
+Data preprocessing: I eliminated unneeded columnes and rows and prepared the data for descriptive investigation and statistical analysis 
+
 ```{r preprocessing }
 
 data_frame <- data_frame[-1: -2, ] %>%  ## remove first 2 rows (completion code) 
@@ -42,13 +51,19 @@ final_data <- data_frame[-1, ]
 final_data <- filter(final_data, trialNo != "na", trialNo != "", trialNo != "trialNo") 
 
 final_data <- final_data %>%  # add a column for sujb_id, 275 represents n° of trials per participant
-  mutate("subj_id" = rep(1:23,each=275))   ### change 5 with actual number of participants
+  mutate("subj_id" = rep(1:31,each=275))   ### change 5 with actual number of participants
 
 ```
 
 Descriptives. 
 Before proceding to the analysis, the dataset is explored. 
-This includes measures of means, standard deviations and plots. 
+This includes measures of means, standard deviations and plots. A new dataframe called Ultimatum is created. It only includes results relative to the ultimatum game. 
+The response to the ultimatum game is recoded as accepted = 1, rejected = 0. 
+The descriptive statistics for the ultimatum game are summarised in the data_frame called ultim_summary and are visualised with a bar plot. The offers are coded as: 
+
+ - 1: 90/10
+   2: 75/25
+   3: 60/40
 
 ```{r Descriptive, warning=FALSE}
 
@@ -56,28 +71,167 @@ final_data$RT <- as.numeric(final_data$RT)  ### set some variables to be as.nume
 final_data$response <- as.numeric(final_data$response)
 
 ultimatum <- final_data %>%   ## create a dataframe with only UltimatumGame results 
-  group_by(subj_id) %>%          ########## recode response as acceptance -> accepted=1, rejected = 0
+  group_by(subj_id) %>%   #### recode response as acceptance -> accepted=1, rejected = 0
     filter(game == "ultimatum") %>% 
       mutate(acceptance = if_else(response == 1, 0L, 1L)) %>% 
         mutate(RT_S = RT / 1000) %>%
           select(subj_id, everything())
 
-ultim_summary <- ultimatum %>%
+ultim_summary <- ultimatum %>%    #### descriptive statistics 
   group_by(stim_type, offer) %>%
   summarise(p = mean(acceptance),
             sd = sd(acceptance))
 
-boxplot <- ggplot(ultim_summary, aes(stim_type, p)) + geom_boxplot()      #### boxplots not considering offers 
-print(boxplot)
+col_plot <- ggplot(ultim_summary, aes(x = stim_type, y = p, fill = stim_type)) + geom_col() +
+  facet_grid(~offer) 
 
-accepted_only <- ultimatum %>%
-  group_by(stim_type, offer) %>%
-    filter(acceptance == 1) 
-
-rates <- accepted_only %>%
-  group_by(stim_type, offer) %>%
-    count(acceptance)
-
-percentages <- mutate(rates, perc = n/1725*100)
+print(col_plot)
 
 ```
+
+
+the binary nature of the dependent variable and its binomial distribution, a regression was used to analyse the data. In the model, the acceptance to the ultimatum game was the response variable and offer and stimulus type were the predictors. 
+
+
+```{r statistical analysis - regression  }
+
+log <- glm(acceptance ~ offer*stim_type, binomial, ultimatum)
+summary(log)
+
+mod2 <- glm(acceptance ~ stim_type*offer + (subj_id / (stim_type * offer)), family = binomial, ultimatum)
+
+summary(mod2)
+
+```
+As expected, participants accepted the most fair offer more often than the other offers. Interestingly, when the proposer was a human, participants accepted the offer 94% of the times, when it was a computer 93% of times and 91% of times when it was a brand. 
+
+Code for the ANOVA, with the same variables 
+
+```{r analysis - anova }
+
+ultim_summary <- ultimatum %>%
+  group_by(subj_id, stim_type, offer) %>%
+   summarise(p = mean(acceptance), sd = sd(acceptance)) 
+
+anova <- with(ultim_summary,
+              aov(p ~ offer * stim_type +
+                    Error(subj_id / (offer * stim_type)))
+)
+
+summary(anova)
+```
+
+Working with the ratings of trustworthiness. Below, I created a dataframe with the trustworthiness ratings only. 
+Ratings of trustworthiness are grouped into categories:
+
+
+```{trust, warning= FALSE}
+trust <- final_data %>%
+  group_by(subj_id) %>%
+    filter(game == "trust") %>%
+      mutate(rating_binned = floor((response + .5)/3.5))
+
+```
+
+Now I created a merged data_frame including ratings of trustworthiness and ultimatum responses. Here I dropped the data relative to interactions with computer, as it is not relevant to the current analysis (influence of trustworthiness ratings in accepting UG offers)
+
+```{trust, warning= FALSE}
+
+
+ultimatum_no_computer <- ultimatum %>%
+  filter(stim_type != "computer") %>%
+  select(stim_type, stim1, subj_id, acceptance, offer)
+
+rating <- trust %>%
+  group_by(stim1) %>%
+select(rating_binned, subj_id, stim_type)
+
+joined <- merge(rating, ultimatum_no_computer)
+
+join_summary <- joined %>%
+  group_by(rating_binned, stim_type, offer) %>%
+    summarise(p = mean(acceptance))
+
+
+plot <- ggplot(join_summary, aes(rating_binned, p, colour=stim_type)) + 
+        geom_line() +   geom_point() +   coord_cartesian(ylim = c(0, 1)) +
+           labs(y = "probability") + facet_grid(~offer)
+
+
+
+print(plot)
+
+```
+
+```{analysis, regression2}
+
+log_trust <- glm(acceptance ~ offer * rating_binned * stim_type, binomial, joined)
+summary(log_trust)
+
+log_trust2 <- glm(acceptance ~ offer*rating_binned*stim_type + subj_id / (offer*rating_binned*stim_type), binomial, joined)
+summary(log_trust2)
+
+
+```
+
+
+SECOND PART, REACTION TIMES.
+I created a data_frame and summarised the reaction times grouping by subjects, stimulus type and kind of offer. 
+
+```{r reaction times}
+
+
+ultim_RT <- ultimatum %>%
+  group_by(subj_id, stim_type, offer) %>%
+  summarise(mean_rt = mean(RT), mean_p = mean(acceptance)) 
+
+boxplot <- ggplot(ultim_RT, aes(offer, mean_rt)) + geom_boxplot()
+print(boxplot)
+
+col_plot <- ggplot(ultim_RT, aes(x = offer, y = mean_rt, fill = offer)) + geom_col() + facet_grid(~stim_type)
+
+print(col_plot)
+```
+The colplot shows that intensity of the offer (highest fairness and highess unfairness, offer 1 and 3, are associated as expected with shorter reaction times.
+This relationship was analysed with a repeated measures analysis of variance 
+
+```{r anova_rt}
+
+
+anova_rt = aov(mean_rt ~ stim_type*offer + Error(subj_id), ultim_RT)
+summary(anova_rt)
+
+lme_rt_offer <- lme(mean_rt ~ offer, ultim_RT, random = ~ 1 | subj_id)
+
+summary(lme_rt_offer)
+
+anova_rt2 <- lme(mean_rt ~ stim_type, ultim_RT, random = ~ 1 | subj_id)
+
+summary(anova_rt2)
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
