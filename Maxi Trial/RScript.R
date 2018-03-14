@@ -1,3 +1,5 @@
+install.packages("pdflatex")
+
 library(tidyverse)
 
 setwd("~/Maxi/Maxi Trial") 
@@ -156,8 +158,21 @@ for (i in 1:length(results)) {
 
 
 
+log_trust <- glm(acceptance ~ offer * rating_binned * stim_type, binomial, joined)
+trust <- final_data %>%
+  group_by(subj_id) %>%
+  filter(game == "trust") %>%
+  mutate(rating_binned = floor((response + .5)/3.5))summary(log_trust)
+
+log_trust2 <- glm(acceptance ~ offer*rating_binned*stim_type + subj_id / (offer*rating_binned*stim_type), binomial, joined)
+summary(log_trust2)
 
 
+anova_rt = aov(mean_rt ~ stim_type*offer + Error(subj_id), ultim_RT)
+summary(anova_rt)
 
+options(contrasts = c("contr.sum","contr.poly"))
+model1 <- aov(dv ~ (Cycle*Phase) + Error(Subj/(Cycle*Phase)), contrasts = contr.sum)
+summary(model1)
 
 ##### in case you need to import .csv files AND keep them as separate data frames use a for loop
