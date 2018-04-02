@@ -1,6 +1,0 @@
-"0","## PLEASE DO NOT MODIFY ANYTHING IN THIS SETUP CHUNK! "
-"0","knitr::opts_chunk$set(echo = TRUE)"
-"0","library(""tidyverse"")"
-"0","subj <- readRDS(""subj.rds"")"
-"0","trials <- readRDS(""trials.rds"")"
-"0","fillers <- readRDS(""fillers.rds"")"

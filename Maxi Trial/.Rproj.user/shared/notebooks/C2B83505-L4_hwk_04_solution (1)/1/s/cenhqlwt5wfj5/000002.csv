@@ -1,2 +1,0 @@
-"0","dat <- inner_join(subjects, trials, ""subj"") %>%"
-"0","  select(subj, object, psource, cond, firstfix, rt, totfix)"

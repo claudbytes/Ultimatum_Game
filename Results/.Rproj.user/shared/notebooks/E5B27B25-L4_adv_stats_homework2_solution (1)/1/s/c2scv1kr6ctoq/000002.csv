@@ -1,0 +1,8 @@
+"0","## there are many other ways... "
+"0","completed_both <- stars %>%"
+"0","  filter(wave != 1) %>%"
+"0","  distinct(SID, wave) %>%"
+"0","  group_by(SID) %>%"
+"0","  filter(n() == 2) %>%"
+"0","  distinct(SID) %>%"
+"0","  nrow()"

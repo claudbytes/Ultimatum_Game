@@ -1,8 +1,0 @@
-"0","## TODO add any additional code you need here"
-"0","each_wave <- stars %>%"
-"0","  distinct(SID, wave) %>%"
-"0","  count(wave)"
-"0","## stub"
-"0","completed_wave_1 <- each_wave %>% filter(wave == 1) %>% pull(n)"
-"0","completed_wave_2 <- each_wave %>% filter(wave == 2) %>% pull(n)"
-"0","completed_wave_3 <- each_wave %>% filter(wave == 3) %>% pull(n)"

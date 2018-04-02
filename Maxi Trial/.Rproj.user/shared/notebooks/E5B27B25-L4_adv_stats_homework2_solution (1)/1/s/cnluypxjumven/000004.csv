@@ -1,5 +1,0 @@
-"0","stars <- read_csv(""stars.csv"", col_types = ""ccii"")"
-"0","subscales <- read_csv(""subscales.csv"")"
-"0","hw <- read_csv(""homework.csv"", col_types = ""ciiiiiiii"") # from HW1"
-"0","exam <- read_csv(""exam.csv"", col_types = ""ci"") # from HW1"
-"0","software <- read_csv(""software.csv"", col_type = ""cc"") # from HW1"

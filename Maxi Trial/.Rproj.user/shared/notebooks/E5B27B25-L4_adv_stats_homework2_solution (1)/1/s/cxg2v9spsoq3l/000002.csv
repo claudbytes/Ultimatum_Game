@@ -1,4 +1,0 @@
-"0","substars <- inner_join(stars, subscales, ""item_id"") %>%"
-"0","  group_by(SID, scale_name) %>%"
-"0","  summarise(m_score = mean(score)) %>%"
-"0","  ungroup()"

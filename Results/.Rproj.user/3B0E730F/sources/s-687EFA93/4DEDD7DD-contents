@@ -1,0 +1,162 @@
+,,,,,,,,,,/---
+title: "Advanced Stats Homework 1"
+author: "Dale Barr"
+date: "30 October 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Instructions
+
+Leave everything above this section in the file.
+
+Save this file in your working directory as an .Rmd file. Ensure you save it in the same location where you put the .csv files you will use for this assignment.  
+
+You should then set your working directory for the console to point to this same location (from the pulldown menu, select Session | Set Working Directory...). 
+
+*NOTE*: in all of the problems below, you will need to replace `NULL` with a value or some code that computes a value, vector, or table.  When altering code inside the code blocks, please *do not* re-order or rename the code blocks (T1, T2, ... etc.).  If you do, this will impact your grade!
+
+It's also recommended that you "Knit" a report to be able to see what you've accomplished and spot potential errors. BUT DO NOT SUBMIT THE HTML version as homework: submit the .Rmd file with your answers through the link provided on the Moodle page.
+
+Some resources that you may find helpful in completing the assignment:
+
+- [RStudio IDE cheatsheet](https://github.com/rstudio/cheatsheets/raw/master/rstudio-ide.pdf)
+- [RStudio RMarkdown reference guide](https://www.rstudio.com/wp-content/uploads/2015/03/rmarkdown-reference.pdf)
+- [RStudio data import cheatsheet](https://github.com/rstudio/cheatsheets/raw/master/data-import.pdf)
+- [RStudio data transformation cheatsheet](https://github.com/rstudio/cheatsheets/raw/master/data-transformation.pdf)
+
+## Background
+
+For this assignment, you will be working with anonymised records from a previous level 3 stats course. The data are stored in three separate files.
+
+* `exam.csv`
+
+    column|description
+    -----|-----------
+    SID  | Student ID
+    exam | points (on 22 point scale)
+
+* `software.csv`
+
+    column|description
+    -----|-----------
+    SID  | Student ID
+    Software | whether student used SPSS or R
+
+* `homework.csv`
+
+    column|description
+    -----|-----------
+    SID  | Student ID
+    H03  | performance on homework 3
+    H04  | performance on homework 4
+    H05  | performance on homework 5
+    H06  | performance on homework 6
+    H07  | performance on homework 7
+    H08  | performance on homework 8
+    H09  | performance on homework 9
+    H10  | performance on homework 10
+
+## Task 1
+
+Set up your session. Load any add-on packages you need and read in all the data files.  
+
+```{r T1, message = FALSE}
+library("tidyverse")
+
+hw <- read_csv("homework.csv", col_types = "ciiiiiiii")
+exam <- read_csv("exam.csv", col_types = "ci")
+software <- read_csv("software.csv", col_types = "cc")
+```
+
+## Task 2
+
+Calculate the final score in the course for each student (as the variable `final_score` in the table `all_grades`).  The score should be on a 22 point scale (0 - 22).  In the calculation of the final score, the mean homework score should be weighted 40% and the exam 60%.  Drop the lowest homework grade for each student before calculating the mean homework score.
+
+```{r T2}
+drop_lowest <- hw %>%
+  gather("assignment", "score", H03:H10) %>%
+  arrange(SID, desc(score)) %>%
+  group_by(SID) %>%
+  slice(-8) %>%
+  ungroup()
+
+hw_final <- drop_lowest %>%
+  group_by(SID) %>%
+  summarise(m_hw = mean(score))
+
+## make a table containing only the variables SID and final_score
+all_grades <- inner_join(exam, hw_final, "SID") %>%
+  mutate(final_score = .4 * m_hw + .6 * exam) %>%
+  select(SID, final_score)
+```
+
+The mean mark for the class was `r all_grades %>% summarize(m = mean(final_score)) %>% pull(m)`
+
+## Task 3
+
+Write code in the block below that will plot a frequency distribution for the final course score
+
+```{r T3, message=FALSE}
+ggplot(all_grades, aes(final_score)) + geom_histogram()
+```
+
+## Task 4
+
+Make boxplots showing a distribution of the final scores broken down by software used (R vs. SPSS)
+
+```{r T4}
+with_software <- inner_join(all_grades, software, "SID")
+
+ggplot(with_software, aes(Software, final_score)) + geom_boxplot()
+```
+
+
+## Task 5
+
+Perform an inferential test to see if there is a significant difference in the mean final course mark for the two software groups.
+
+```{r T5}
+## this table was created to make it easier to report results
+means_and_sds <- with_software %>%
+  group_by(Software) %>%
+  summarise(m = mean(final_score), 
+            sd = sd(final_score))
+
+t_result <- t.test(final_score ~ Software, with_software) %>%
+  broom::tidy()
+
+## pull out values for the report below
+r_mean <- means_and_sds %>% filter(Software == "R") %>% pull(m) %>% pluck(1)
+spss_mean <- means_and_sds %>% filter(Software == "SPSS") %>% pull(m) %>% pluck(1)
+r_sd <- means_and_sds %>% filter(Software == "R") %>% pull(sd) %>% pluck(1)
+spss_sd <- means_and_sds %>% filter(Software == "SPSS") %>% pull(sd) %>% pluck(1)
+
+t_obs <- t_result %>% pull(statistic)
+t_df <- t_result %>% pull(parameter)
+pval <- t_result %>% pull(p.value)
+
+is_sig <- ifelse(pval < .05, "significant", "not significant")
+pstr <- ifelse(pval < .001, 
+               "$p$ < .001",                 # pval < .001 is TRUE
+               sprintf("$p$ = %0.3f", pval)) # pval < .001 is FALSE
+
+```
+
+## Task 6
+
+Write a paragraph in the space below describing your findings.  Use inline code to make your paragraph reproducible (see [the RStudio RMarkdown reference guide](https://www.rstudio.com/wp-content/uploads/2015/03/rmarkdown-reference.pdf) for details).  See also the [`broom` package](https://github.com/tidyverse/broom) for extracting statistics from R objects into a table.  You might also want to get acquainted with `dplyr::pull()`.
+
+---
+
+The mean grades (and standard deviations) on a 22-point scale were 
+`r round(r_mean, 2)`    (`r round(r_sd, 2)`) for R and 
+`r round(spss_mean, 2)` (`r round(spss_sd, 2)`) for SPSS.
+A `r t_result %>% pull(method)` was conducted comparing the final course grades of students using R and SPSS.
+The difference was `r is_sig` at the .05 alpha level,
+$t$(`r round(t_df, 2)`) = `r round(t_obs, 2)`, `r pstr`.
+
+---

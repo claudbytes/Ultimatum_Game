@@ -1,0 +1,7 @@
+"0","tclean_bin <- tclean_af %>%"
+"0","  mutate(onset_bin = floor((onset + 250) / 500) * 500) %>%"
+"0","  group_by(onset_bin) %>%"
+"0","  summarise(p = mean(anyfill))"
+"0","ggplot(tclean_bin, aes(onset_bin, p)) +"
+"0","  geom_line() +"
+"0","  geom_point()"

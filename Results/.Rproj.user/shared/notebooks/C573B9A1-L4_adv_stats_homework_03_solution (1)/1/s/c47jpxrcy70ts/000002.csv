@@ -1,0 +1,3 @@
+"0","## get rid of all fillers of type 'ot'"
+"0","tclean <- trials %>%"
+"0","  filter(filler != ""ot"")"
